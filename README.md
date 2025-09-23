@@ -91,10 +91,11 @@ POST /recommend
 Content-Type: application/json
 
 {
-  "team_text": "Your team here...",
-  "bank": 2.5,
+  "team_text": "Raya,Romero,Calafiori , Chalobah, Doku , Enzo ,Gakpo,Semenyo,Kdus,JoaoPedro Chelsea,Haaland ",
+  "bank": 0,
   "max_transfers": 1,
-  "use_llm": false
+  "strict_mode": false,
+  "use_llm": true
 }
 ```
 

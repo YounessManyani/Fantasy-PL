@@ -3,11 +3,7 @@ import { parse } from "csv-parse/sync";
 import { normalizeName } from "./normalizer.js";
 import { normalizePosition } from "./positionNormalizer.js";
 
-// Helper: convert string to number with fallback
-function toNumber(value, defaultValue = 0) {
-  const num = parseFloat(String(value).replace(",", "."));
-  return Number.isFinite(num) ? num : defaultValue;
-}
+
 
 // Z-score standardization helper
 function zScore(value, mean = 0, stddev = 1) {
@@ -58,7 +54,7 @@ function calculateScore(position, stats, zMeans, zStddevs) {
     zMeans.expected_goal_involvements,
     zStddevs.expected_goal_involvements
   );
-//remps de jeux a ajouter obligatoirement
+  //remps de jeux a ajouter obligatoirement
   switch (pos) {
     case "GK":
       return (
@@ -182,16 +178,16 @@ export function loadPlayers(csvPath) {
     const nameParts = normalizedName.split(" ").filter(Boolean);
 
     const stats = {
-      points_per_game: toNumber(row.points_per_game),
-      goals_scored: toNumber(row.goals_scored),
-      assists: toNumber(row.assists),
-      clean_sheets: toNumber(row.clean_sheets),
-      saves: toNumber(row.saves),
-      goals_conceded: toNumber(row.goals_conceded),
-      bonus: toNumber(row.bonus),
-      yellow_cards: toNumber(row.yellow_cards || 0),
-      red_cards: toNumber(row.red_cards || 0),
-      expected_goal_involvements: toNumber(row.expected_goal_involvements),
+      points_per_game: row.points_per_game,
+      goals_scored: row.goals_scored,
+      assists: row.assists,
+      clean_sheets: row.clean_sheets,
+      saves: row.saves,
+      goals_conceded: row.goals_conceded,
+      bonus: row.bonus,
+      yellow_cards: row.yellow_cards || 0,
+      red_cards: row.red_cards || 0,
+      expected_goal_involvements: row.expected_goal_involvements,
     };
 
     return {
@@ -203,11 +199,11 @@ export function loadPlayers(csvPath) {
       club_name: row.club_name,
       position: normalizedPosition,
       raw_position: rawPosition,
-      price: toNumber(row.now_cost),
+      price: row.now_cost,
       points_per_game: stats.points_per_game,
       score: calculateScore(normalizedPosition, stats, zMeans, zStddevs),
-      total_points: toNumber(row.total_points),
-      minutes: toNumber(row.minutes),
+      total_points: row.total_points,
+      minutes: row.minutes,
     };
   });
 }

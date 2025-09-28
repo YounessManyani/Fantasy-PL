@@ -9,7 +9,7 @@ export function createSwaggerSpec(config) {
         title: config.app.title,
         version: config.app.version,
         description:
-          "Fantasy Premier League team parser and transfer recommender API",
+          "Fantasy Premier League team parser and transfer recommender API (fixture-aware with FDR/RAG).",
       },
       servers: [
         {
@@ -19,6 +19,23 @@ export function createSwaggerSpec(config) {
       ],
       components: {
         schemas: {
+          // ---------- NEW: Fixture schema (used by Player.next_fixture and Transfer.meta) ----------
+          Fixture: {
+            type: "object",
+            properties: {
+              opponent: { type: "string", example: "West Ham United" },
+              home: { type: "boolean", example: true },
+              fdr: { type: "integer", minimum: 1, maximum: 5, example: 2 },
+              difficulty: {
+                type: "string",
+                enum: ["easy", "medium", "hard"],
+                example: "easy",
+              },
+            },
+            required: ["opponent", "home", "fdr", "difficulty"],
+          },
+
+          // ---------- UPDATED: Player now optionally includes next_fixture + adjusted_score ----------
           Player: {
             type: "object",
             properties: {
@@ -32,6 +49,21 @@ export function createSwaggerSpec(config) {
               price: { type: "number", example: 14.0 },
               score: { type: "number", example: 8.5 },
               points_per_game: { type: "number", example: 7.2 },
+
+              // ---- FDR/RAG additions ----
+              next_fixture: {
+                $ref: "#/components/schemas/Fixture",
+                nullable: true,
+                description:
+                  "Annotated when a gameweek is provided on /parse-team or /recommend.",
+              },
+              adjusted_score: {
+                type: "number",
+                nullable: true,
+                example: 9.35,
+                description:
+                  "Fixture-adjusted score (easy ×1.10, medium ×1.00, hard ×0.90).",
+              },
             },
             required: ["name", "club", "position", "price", "score"],
           },
@@ -96,9 +128,20 @@ export function createSwaggerSpec(config) {
                   },
                 },
               },
+              debug: {
+                type: "object",
+                nullable: true,
+                properties: {
+                  llm_requested: { type: "boolean" },
+                  llm_available: { type: "boolean" },
+                  llm_used: { type: "boolean" },
+                  unknown_count: { type: "number" },
+                },
+              },
             },
           },
 
+          // ---------- UPDATED: Transfer with FDR meta ----------
           Transfer: {
             type: "object",
             properties: {
@@ -106,9 +149,21 @@ export function createSwaggerSpec(config) {
               in: { $ref: "#/components/schemas/Player" },
               gain: { type: "number", example: 1.5 },
               cost: { type: "number", example: 2.0 },
+              meta: {
+                type: "object",
+                nullable: true,
+                properties: {
+                  gameweek: { type: "integer", example: 7 },
+                  out_fixture: { $ref: "#/components/schemas/Fixture" },
+                  in_fixture: { $ref: "#/components/schemas/Fixture" },
+                  out_adjusted: { type: "number", example: 5.49 },
+                  in_adjusted: { type: "number", example: 7.04 },
+                },
+              },
             },
           },
 
+          // ---------- UPDATED: Recommendation shows explanation + parsed team + optional difficulty summary ----------
           Recommendation: {
             type: "object",
             properties: {
@@ -117,7 +172,11 @@ export function createSwaggerSpec(config) {
                 type: "array",
                 items: { $ref: "#/components/schemas/Transfer" },
               },
-              explanation: { type: "string" },
+              explanation: {
+                type: "string",
+                example:
+                  "GW7 fixtures → OUT: West Ham: Arsenal (A), FDR 4 – hard | IN: Arsenal: West Ham (H), FDR 2 – easy\nAdjusted: IN 7.04 vs OUT 5.49 (uses FDR multipliers)",
+              },
               new_team: {
                 type: "array",
                 items: { $ref: "#/components/schemas/Player" },
@@ -125,12 +184,26 @@ export function createSwaggerSpec(config) {
               impact: {
                 type: "object",
                 properties: {
-                  score_gain: { type: "number" },
-                  cost: { type: "number" },
-                  transfers_used: { type: "number" },
+                  score_gain: { type: "number", example: 1.55 },
+                  cost: { type: "number", example: 0.5 },
+                  transfers_used: { type: "number", example: 1 },
                 },
               },
               parsed_team: { $ref: "#/components/schemas/ParsedTeam" },
+              difficulty_summary: {
+                type: "object",
+                nullable: true,
+                properties: {
+                  before: {
+                    type: "object",
+                    example: { easy: 2, medium: 6, hard: 3 },
+                  },
+                  after: {
+                    type: "object",
+                    example: { easy: 3, medium: 6, hard: 2 },
+                  },
+                },
+              },
             },
           },
         },
@@ -152,7 +225,15 @@ export function createSwaggerSpec(config) {
                         version: { type: "string" },
                         environment: { type: "string" },
                         players_loaded: { type: "number" },
-                        llm_enabled: { type: "boolean" },
+                        llm: {
+                          type: "object",
+                          properties: {
+                            enabled: { type: "boolean", example: true },
+                            provider: { type: "string", example: "openai" },
+                            model: { type: "string", example: "gpt-4o" },
+                            has_key: { type: "boolean", example: true },
+                          },
+                        },
                       },
                     },
                   },
@@ -193,6 +274,15 @@ export function createSwaggerSpec(config) {
                         type: "boolean",
                         default: false,
                         description: "Use LLM for name resolution",
+                      },
+                      // ---------- NEW: gameweek toggles fixture annotations ----------
+                      gameweek: {
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 38,
+                        description:
+                          "Optional gameweek. When provided, players include next_fixture and adjusted_score.",
+                        example: 7,
                       },
                     },
                   },
@@ -252,6 +342,15 @@ export function createSwaggerSpec(config) {
                       use_llm: {
                         type: "boolean",
                         default: false,
+                      },
+                      // ---------- NEW: gameweek drives fixture-adjusted scoring ----------
+                      gameweek: {
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 38,
+                        description:
+                          "Optional gameweek. When provided, recommendations use fixture-adjusted scores and include fixture context.",
+                        example: 7,
                       },
                     },
                   },

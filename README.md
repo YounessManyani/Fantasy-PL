@@ -77,7 +77,7 @@ POST /parse-team
 Content-Type: application/json
 
 {
-  "team_text": "Ramsdale, Walker, Saliba, Gabriel, Trippier, Rice, Odegaard, Saka, Haaland, Jesus, Watkins",
+  "team_text": "Raya, Romero, Calafiori, Chalobah, Doku, Enzo, Gakpo, Semenyo, Haaland, Kudus, Joao Pedro chelsea",Haaland, Jesus, Watkins",
   "strict_mode": false,
   "include_suggestions": true,
   "use_llm": false

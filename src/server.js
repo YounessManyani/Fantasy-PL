@@ -19,6 +19,7 @@ import { NameResolver } from "./services/nameResolver.js";
 import { TeamParser } from "./services/teamParser.js";
 import { Recommender } from "./services/recommender.js";
 import { FixtureService } from "./services/fixtures/fixtureService.js";
+import { FixtureAnalyst } from "./services/llm/fixtureAnalyst.js";
 // API modules
 import { createRoutes } from "./api/routes.js";
 import { createSwaggerSpec } from "./api/swagger.js";
@@ -58,6 +59,11 @@ async function createApp() {
     const fixtureService = new FixtureService();
     const parser = new TeamParser(resolver, store, fixtureService);
     const recommender = new Recommender(store, fixtureService);
+    const fixtureAnalyst = new FixtureAnalyst(
+      fixtureService,
+      store,
+      config.llm
+    );
 
     // Middleware
     app.use(cors(corsConfig()));
@@ -77,7 +83,7 @@ async function createApp() {
     }
 
     // API Routes
-    const routes = createRoutes(parser, recommender, config);
+    const routes = createRoutes(parser, recommender, config, fixtureAnalyst);
     app.use("/", routes);
 
     // Error handling (must be last)

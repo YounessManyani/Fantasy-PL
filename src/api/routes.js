@@ -3,6 +3,7 @@ import { Router } from "express";
 import { validateRequest } from "./middleware.js";
 import { z } from "zod";
 import { createLLMTestRoute } from "./llmTest.js";
+import { FixtureAnalyst } from "../services/llm/fixtureAnalyst.js";
 
 // Request schemas
 const parseTeamSchema = z.object({
@@ -20,6 +21,18 @@ const recommendSchema = z.object({
   strict_mode: z.boolean().optional().default(false),
   use_llm: z.boolean().optional().default(false),
   gameweek: z.number().int().min(1).max(38).optional(),
+});
+const analyzeFixturesSchema = z.object({
+  query: z.string().min(1, "Query is required"),
+  team_text: z.string().optional(),
+  gameweek: z.number().int().min(1).max(38).optional(),
+  bank: z.number().min(0).max(100).optional().default(0),
+  include_transfers: z.boolean().optional().default(false),
+});
+const comparePlayersSchema = z.object({
+  players: z.array(z.string()).min(2).max(5),
+  gameweeks_ahead: z.number().int().min(1).max(10).optional().default(5),
+  current_gameweek: z.number().int().min(1).max(38).optional(),
 });
 
 export function createRoutes(teamParser, recommender, config) {
@@ -199,6 +212,234 @@ export function createRoutes(teamParser, recommender, config) {
       })),
     });
   });
+  const fixtureAnalyst = new FixtureAnalyst(
+    teamParser.fixtureService,
+    teamParser.store,
+    config.llm
+  );
+  router.post(
+    "/analyze-fixtures",
+    validateRequest(analyzeFixturesSchema),
+    async (req, res, next) => {
+      try {
+        console.log(`[API] /analyze-fixtures request:`, {
+          query_length: req.body.query.length,
+          has_team: !!req.body.team_text,
+          gameweek: req.body.gameweek,
+        });
 
+        // Parse team if provided
+        let team = null;
+        let transfers = null;
+
+        if (req.body.team_text) {
+          const teamResult = await teamParser.parse(req.body.team_text, {
+            useLLM: config.llm.enabled,
+            gameweek: req.body.gameweek,
+          });
+          team = teamResult.players;
+
+          // Get transfer suggestions if requested
+          if (req.body.include_transfers && team.length > 0) {
+            const recommendations = recommender.recommend(team, {
+              bank: req.body.bank,
+              maxTransfers: 1,
+              gameweek: req.body.gameweek,
+            });
+            transfers = recommendations.transfers;
+          }
+        }
+
+        // Analyze with LLM
+        const analysis = await fixtureAnalyst.analyzeFixtures(req.body.query, {
+          team,
+          gameweek: req.body.gameweek,
+          transfers,
+          bank: req.body.bank,
+        });
+
+        console.log(`[API] /analyze-fixtures response:`, {
+          success: analysis.success,
+          function_calls: analysis.function_calls?.length || 0,
+          has_fallback: !!analysis.fallback,
+        });
+
+        res.json(analysis);
+      } catch (error) {
+        console.error(`[API] /analyze-fixtures error:`, error.message);
+        next(error);
+      }
+    }
+  );
+
+  // NEW: Compare multiple players' fixtures
+  router.post(
+    "/compare-players-fixtures",
+    validateRequest(comparePlayersSchema),
+    async (req, res, next) => {
+      try {
+        console.log(`[API] /compare-players-fixtures request:`, {
+          players: req.body.players,
+          gameweeks_ahead: req.body.gameweeks_ahead,
+        });
+
+        const currentGw = req.body.current_gameweek || 1;
+        const comparisons = [];
+
+        // Get fixture data for each player
+        for (const playerName of req.body.players) {
+          const query = `Analyze fixtures for ${playerName} over the next ${req.body.gameweeks_ahead} gameweeks`;
+
+          const analysis = await fixtureAnalyst.analyzeFixtures(query, {
+            gameweek: currentGw,
+          });
+
+          comparisons.push({
+            player: playerName,
+            analysis: analysis.analysis || analysis.fallback,
+          });
+        }
+
+        // Get overall comparison
+        const comparisonQuery = `Compare the fixtures of these players: ${req.body.players.join(
+          ", "
+        )}. Which player has the best upcoming fixtures for FPL?`;
+
+        const overallAnalysis = await fixtureAnalyst.analyzeFixtures(
+          comparisonQuery,
+          { gameweek: currentGw }
+        );
+
+        res.json({
+          individual_analyses: comparisons,
+          overall_comparison:
+            overallAnalysis.analysis || overallAnalysis.fallback,
+          gameweeks_analyzed: req.body.gameweeks_ahead,
+          starting_gameweek: currentGw,
+        });
+      } catch (error) {
+        console.error(`[API] /compare-players-fixtures error:`, error.message);
+        next(error);
+      }
+    }
+  );
+
+  // NEW: Get fixture insights for specific gameweek
+  router.get("/fixture-insights/:gameweek", async (req, res, next) => {
+    try {
+      const gameweek = parseInt(req.params.gameweek);
+
+      if (isNaN(gameweek) || gameweek < 1 || gameweek > 38) {
+        return res.status(400).json({
+          error: "Invalid gameweek. Must be between 1 and 38.",
+        });
+      }
+
+      console.log(`[API] /fixture-insights/${gameweek} request`);
+
+      // Get best and worst fixtures for the gameweek
+      const query = `What are the best and worst fixtures in gameweek ${gameweek}? Which teams should FPL managers target or avoid?`;
+
+      const analysis = await fixtureAnalyst.analyzeFixtures(query, {
+        gameweek,
+      });
+
+      // Get top players from easy fixture teams
+      const easyFixtureTeams = [];
+      const hardFixtureTeams = [];
+
+      // Check all teams
+      const teams = config.data.plClubs;
+      for (const team of teams) {
+        const fixture = teamParser.fixtureService.getFixture(team, gameweek);
+        if (fixture) {
+          if (fixture.difficulty === "easy") {
+            easyFixtureTeams.push({
+              team,
+              opponent: fixture.opponent,
+              venue: fixture.home ? "H" : "A",
+              fdr: fixture.fdr,
+            });
+          } else if (fixture.difficulty === "hard") {
+            hardFixtureTeams.push({
+              team,
+              opponent: fixture.opponent,
+              venue: fixture.home ? "H" : "A",
+              fdr: fixture.fdr,
+            });
+          }
+        }
+      }
+
+      // Get top players from easy fixture teams
+      const recommendations = [];
+      for (const teamInfo of easyFixtureTeams.slice(0, 3)) {
+        const players = teamParser.store
+          .getByClub(teamInfo.team)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 2)
+          .map((p) => ({
+            name: p.player_name,
+            position: p.position,
+            price: p.price,
+            score: p.score,
+            adjusted_score: (p.score * 1.1).toFixed(2),
+          }));
+
+        if (players.length > 0) {
+          recommendations.push({
+            team: teamInfo.team,
+            fixture: `${teamInfo.opponent} (${teamInfo.venue})`,
+            fdr: teamInfo.fdr,
+            top_players: players,
+          });
+        }
+      }
+
+      res.json({
+        gameweek,
+        llm_analysis: analysis.analysis || analysis.fallback,
+        easy_fixtures: easyFixtureTeams,
+        hard_fixtures: hardFixtureTeams,
+        player_recommendations: recommendations,
+      });
+    } catch (error) {
+      console.error(`[API] /fixture-insights error:`, error.message);
+      next(error);
+    }
+  });
+
+  // NEW: Natural language fixture questions
+  router.post("/fixture-query", async (req, res, next) => {
+    try {
+      const { question, context } = req.body;
+
+      if (!question) {
+        return res.status(400).json({
+          error: "Question is required",
+        });
+      }
+
+      console.log(`[API] /fixture-query request:`, {
+        question_length: question.length,
+        has_context: !!context,
+      });
+
+      const analysis = await fixtureAnalyst.analyzeFixtures(
+        question,
+        context || {}
+      );
+
+      res.json({
+        question,
+        answer: analysis.analysis || analysis.fallback,
+        function_calls_used: analysis.function_calls?.length || 0,
+        success: analysis.success,
+      });
+    } catch (error) {
+      console.error(`[API] /fixture-query error:`, error.message);
+      next(error);
+    }
+  });
   return router;
 }

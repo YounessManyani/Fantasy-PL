@@ -104,20 +104,14 @@ async function start() {
 
     const server = app.listen(config.app.port, () => {
       console.log(`
-╔════════════════════════════════════════════════╗
-║                                                ║
-║           FPL API Server                      ║
-║                                                ║
-╟────────────────────────────────────────────────╢
-║  Status:     ✅ Running                        ║
-║  Port:       ${config.app.port}                              ║
-║  Docs:       http://localhost:${config.app.port}/docs       ║
-║  Health:     http://localhost:${config.app.port}/health     ║
-║  LLM:        ${
-        config.llm.enabled ? "✅ Enabled" : "❌ Disabled"
-      }                      ║
-║                                                ║
-╚════════════════════════════════════════════════╝
+  Status: ✅ Running                         
+  Port:   ${config.app.port}                               
+  Docs:   http://localhost:${config.app.port}/docs        
+  Health: http://localhost:${config.app.port}/health  
+  LLM:        ${
+    config.llm.enabled ? "✅ Enabled" : "❌ Disabled"
+  }                  
+
 
 To test the API, try these commands in a new terminal:
 

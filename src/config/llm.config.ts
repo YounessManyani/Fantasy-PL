@@ -1,8 +1,6 @@
 import { LLMConfig } from '../types/llm.types';
 
-/**
- * Load LLM configuration from environment variables
- */
+
 export function loadLLMConfig(): LLMConfig {
   const enabled = process.env.USE_LLM === '1';
   const provider = process.env.LLM_PROVIDER || 'openai';
@@ -19,12 +17,10 @@ export function loadLLMConfig(): LLMConfig {
   };
 }
 
-/**
- * Validate LLM configuration
- */
+
 export function validateLLMConfig(config: LLMConfig): void {
   if (!config.enabled) {
-    return; // No validation needed if disabled
+    return; 
   }
 
   const errors: string[] = [];
@@ -50,9 +46,6 @@ export function validateLLMConfig(config: LLMConfig): void {
   }
 }
 
-/**
- * Get LLM provider-specific settings
- */
 export function getLLMProviderConfig(provider: string) {
   switch (provider) {
     case 'openai':

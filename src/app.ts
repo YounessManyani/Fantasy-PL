@@ -1,49 +1,90 @@
-import express, { Application } from 'express';
+import express, { Express } from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
+import { AppConfig } from './types/config.types';
 import { AppContainer } from './container';
 import { createRoutes } from './routes';
 import { 
+  requestLogger, 
   errorHandler, 
-  notFoundHandler, 
-  requestLogger,
+  notFoundHandler,
   createRateLimiter,
   rateLimitConfig 
 } from './middleware';
-import { AppConfig } from './types/config.types';
+import { createSwaggerConfig, swaggerUiOptions } from './config/swagger.config';
+import { openApiSchemas } from './docs/swagger/schemas';
 import { createLogger } from './utils/logger.utils';
 
 const logger = createLogger('App');
 
-export function createApp(config: AppConfig): Application {
+export function createApp(config: AppConfig): Express {
   const app = express();
 
-  // Security & parsing
-  app.use(helmet());
+  // ==================== MIDDLEWARE ====================
+  
+  // CORS
   app.use(cors(config.cors));
-  app.use(express.json({ limit: '1mb' }));
+
+  // Body parsing
+  app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Request logging
+  // Logging
   app.use(requestLogger);
 
-  // Rate limiting (optional)
+  // Rate limiting (optionnel)
   if (process.env.ENABLE_RATE_LIMIT === '1') {
     app.use(createRateLimiter(rateLimitConfig()));
-    logger.info('Rate limiting enabled');
   }
 
-  // Initialize dependency injection container
+  // ==================== SWAGGER DOCUMENTATION ====================
+  
+  logger.info('Initializing Swagger documentation...');
+  
+  // Générer spec OpenAPI
+  const swaggerSpec = swaggerJsdoc(createSwaggerConfig(config));
+  
+  // Injecter les schémas
+  if (swaggerSpec.components) {
+    swaggerSpec.components.schemas = {
+      ...swaggerSpec.components.schemas,
+      ...openApiSchemas,
+    };
+  }
+
+  // Swagger UI
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, swaggerUiOptions)
+  );
+
+  // Raw OpenAPI spec (JSON)
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+
+  logger.info('Swagger documentation available at /api-docs');
+
+  // ==================== DEPENDENCY INJECTION ====================
+  
   logger.info('Creating dependency injection container...');
   const container = new AppContainer(config);
+  logger.info('Application container initialized successfully ✓');
 
-  // Routes
-  app.use('/', createRoutes(container));
+  // ==================== ROUTES ====================
+  
+  const router = createRoutes(container);
+  app.use(router);
 
-  // Error handling (must be last)
+  // ==================== ERROR HANDLING ====================
+  
   app.use(notFoundHandler);
   app.use(errorHandler);
 
   logger.info('Express app configured ✓');
+
   return app;
 }

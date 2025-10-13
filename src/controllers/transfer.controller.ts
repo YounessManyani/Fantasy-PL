@@ -11,7 +11,66 @@ export class TransferController {
     private teamParser: ITeamParserService,
     private recommender: ITransferRecommenderService
   ) {}
-
+/**
+ * @openapi
+ * /api/v1/transfers/recommend:
+ *   post:
+ *     tags:
+ *       - Transfers
+ *     summary: Recommande des transferts optimaux
+ *     description: |
+ *       Analyse l'équipe actuelle et recommande les meilleurs transferts possibles.
+ *       
+ *       **Algorithmes utilisés :**
+ *       - Single Transfer: Exhaustive search O(n × m)
+ *       - Double Transfer: Greedy heuristic (NP-hard problem)
+ *       
+ *       **Facteurs pris en compte :**
+ *       - Score des joueurs (base + fixture adjustment)
+ *       - Budget disponible
+ *       - Limites de club (max 3 par club)
+ *       - Positions (swap uniquement dans même position)
+ *       
+ *       **Stratégies :**
+ *       - `best_gain`: Maximise le gain de score
+ *       - `best_value`: Maximise le ratio gain/coût
+ *       - `balanced`: Équilibre entre gain et coût
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RecommendRequest'
+ *           examples:
+ *             singleTransfer:
+ *               summary: 1 transfert simple
+ *               value:
+ *                 teamText: "Salah, Haaland, Son, Saka, KDB, TAA, Van Dijk, Gabriel, Porro, Watkins, Isak"
+ *                 bank: 2.5
+ *                 maxTransfers: 1
+ *                 gameweek: 10
+ *             doubleTransfer:
+ *               summary: 2 transferts
+ *               value:
+ *                 teamText: "Salah, Haaland, Son, Saka, KDB, TAA, Van Dijk, Gabriel, Porro, Watkins, Isak"
+ *                 bank: 5.0
+ *                 maxTransfers: 2
+ *                 strategy: "best_value"
+ *     responses:
+ *       200:
+ *         description: Recommandations générées
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/TransferRecommendation'
+ *       400:
+ *         description: No players recognized
+ */
   async recommend(
     req: Request<{}, {}, RecommendRequest>,
     res: Response<ApiResponse>,

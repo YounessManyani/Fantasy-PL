@@ -1,4 +1,3 @@
-// src/config/config.ts
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppConfig } from '../types/config.types';
@@ -6,14 +5,11 @@ import { loadLLMConfig } from './llm.config';
 import { PL_CLUBS } from '../models/constants/clubs.constants';
 import { FPL_RULES } from '../models/constants/fpl-rules.constants';
 
-// ESM-safe __filename / __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Project root (where you run `node`/`tsx` from)
 const projectRoot = process.cwd();
 
-// Helper to resolve from project root (safer across TS/JS builds)
 const fromRoot = (...parts: string[]) => path.resolve(projectRoot, ...parts);
 
 export function createAppConfig(): AppConfig {
@@ -26,7 +22,6 @@ export function createAppConfig(): AppConfig {
     },
 
     data: {
-      // Prefer env, otherwise resolve from project root. Never hardcode backslashes.
       csvPath:
         process.env.CSV_PATH ??
         fromRoot('src', 'models', 'data', 'fpl_player_statistics.csv'),
@@ -51,7 +46,6 @@ export function createAppConfig(): AppConfig {
   };
 }
 
-/** Validate configuration */
 export function validateConfig(config: AppConfig): void {
   const errors: string[] = [];
 
@@ -71,12 +65,9 @@ export function validateConfig(config: AppConfig): void {
   }
 }
 
-/** Export *the* function your server expects */
 export function loadConfig(): AppConfig {
   const cfg = createAppConfig();
   validateConfig(cfg);
   return cfg;
 }
 
-// If you prefer default export instead, also do:
-// export default { loadConfig, createAppConfig, validateConfig };

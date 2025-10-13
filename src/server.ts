@@ -1,14 +1,16 @@
 import { createApp } from './app';
-import { loadConfig } from './config/app.config';  // ✅ Import nommé de la fonction
+import { loadConfig } from './config/app.config';  
 import { createLogger } from './utils/logger.utils';
 import { Server } from 'http';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const logger = createLogger('Server');
 
 async function start(): Promise<void> {
   try {
     // Load configuration
-    const config = loadConfig();  // ✅ Appeler la fonction
+    const config = loadConfig();
     
     // Create Express app
     const app = createApp(config);
@@ -30,8 +32,6 @@ async function start(): Promise<void> {
 🚀 Ready to accept requests!
       `);
     });
-
-    // Graceful shutdown
     const shutdown = async (signal: string) => {
       logger.info(`${signal} received, shutting down gracefully...`);
       

@@ -1,19 +1,18 @@
-import { useState } from 'react';
-import { Users } from 'lucide-react';
-import { useTeamBuilder } from '../../hooks/useTeamBuilder';
-import { FORMATIONS } from '../../types/myteam.types';
-import { parseTeam } from '../../services/teamService.ts';
-import { searchPlayers } from '../../services/playerService';
-import type { PlayerSlot } from '../../types/myteam.types';
-import type { Player } from '../../types';
+import { useState } from "react";
+import { Users } from "lucide-react";
+import { useTeamBuilder } from "../../hooks/useTeamBuilder";
+import { FORMATIONS } from "../../types/myteam.types";
+import { parseTeam } from "../../services/teamService.ts";
+import type { PlayerSlot } from "../../types/myteam.types";
+import type { Player } from "../../types";
 
 // Components
-import { FormationSelector } from './FormationSelector';
-import { SquadBuilder } from './SquadBuilder';
-import { FootballField } from './FootballField';
-import { TeamControls } from './TeamControls';
-import { PlayerSelectionModal } from './PlayerSelectionModal';
-import { ParsedTeamResults } from './ParsedTeamResults';
+import { FormationSelector } from "./FormationSelector";
+import { SquadBuilder } from "./SquadBuilder";
+import { FootballField } from "./FootballField";
+import { TeamControls } from "./TeamControls";
+import { PlayerSelectionModal } from "./PlayerSelectionModal";
+import { ParsedTeamResults } from "./ParsedTeamResults";
 
 const MyTeam = () => {
   const {
@@ -40,20 +39,20 @@ const MyTeam = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentSlot, setCurrentSlot] = useState<PlayerSlot | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const config = FORMATIONS[selectedFormation];
 
   const openPlayerModal = (slot: PlayerSlot) => {
     setCurrentSlot(slot);
     setIsModalOpen(true);
-    setSearchQuery('');
+    setSearchQuery("");
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentSlot(null);
-    setSearchQuery('');
+    setSearchQuery("");
   };
 
   const selectPlayer = (player: Player) => {
@@ -65,7 +64,7 @@ const MyTeam = () => {
 
   const handleParseTeam = async () => {
     if (selectedPlayers.length !== 11) {
-      setError('Please select all 11 players');
+      setError("Please select all 11 players");
       return;
     }
 
@@ -76,19 +75,11 @@ const MyTeam = () => {
       const result = await parseTeam(selectedPlayers, selectedFormation, useAI);
       setParsedResult(result);
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to parse team');
+      setError((err as Error).message || "Failed to parse team");
     } finally {
       setIsLoading(false);
     }
   };
-
-  const filteredPlayers = currentSlot
-    ? searchPlayers(
-        currentSlot.position,
-        searchQuery,
-        selectedPlayers.map(p => p.id)
-      )
-    : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -99,8 +90,12 @@ const MyTeam = () => {
             <Users className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Parse Your Team</h1>
-            <p className="text-gray-600">Get instant analysis and transfer suggestions</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Parse Your Team
+            </h1>
+            <p className="text-gray-600">
+              Get instant analysis and transfer suggestions
+            </p>
           </div>
         </div>
       </div>
@@ -149,9 +144,10 @@ const MyTeam = () => {
       {/* Player Selection Modal */}
       {isModalOpen && currentSlot && (
         <PlayerSelectionModal
+          key={currentSlot.position}
           position={currentSlot.position}
-          players={filteredPlayers}
           searchQuery={searchQuery}
+          excludeIds={selectedPlayers.map((p) => p.id)}
           onSearchChange={setSearchQuery}
           onSelectPlayer={selectPlayer}
           onClose={closeModal}

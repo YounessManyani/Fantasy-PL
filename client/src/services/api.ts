@@ -1,9 +1,11 @@
+// src/services/api.ts (or your path)
 import type { Player, Position } from "../types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+export const API_BASE_URL =
+  (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:8000";
 
 export class ApiError extends Error {
-  public status: number;
+  status: number;
   constructor(status: number, message: string) {
     super(message);
     this.status = status;
@@ -11,80 +13,60 @@ export class ApiError extends Error {
   }
 }
 
-async function fetchApi<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
   });
-
-  if (!response.ok) {
-    throw new ApiError(response.status, `API Error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data;
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  return res.json();
 }
 
-// Fonction pour générer un ID unique basé sur le nom et le club
+/* ---------- existing players endpoint ---------- */
+
 function generatePlayerId(name: string, club: string): number {
   const str = `${name}-${club}`;
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash | 0; // Convert to 32-bit integer
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
   }
   return Math.abs(hash);
 }
-// Add type guard before the getPlayers function
+
 const VALID_POSITIONS = ["GK", "DEF", "MID", "FWD"] as const;
+export type PositionLiteral = (typeof VALID_POSITIONS)[number];
 export function isValidPosition(value: unknown): value is Position {
-  return (
-    typeof value === "string" && VALID_POSITIONS.includes(value as Position)
-  );
+  return typeof value === "string" && VALID_POSITIONS.includes(value as any);
 }
 
-// Define the BackendPlayer interface for raw API response data
-interface BackendPlayer {
+type BackendPlayer = {
   name: string;
   club: string;
-  position: unknown; // Keep as unknown since we validate it with isValidPosition
+  position: unknown;
   price?: number;
   score?: number;
   pointsPerGame?: number;
-}
+};
 
-// Update fetchApi call with proper typing
 export async function getPlayers(filters?: {
   position?: Position;
   club?: string;
   limit?: number;
 }): Promise<Player[]> {
   const params = new URLSearchParams();
-
   if (filters?.position) params.append("position", filters.position);
   if (filters?.club) params.append("club", filters.club);
-  if (filters?.limit) params.append("limit", filters.limit.toString());
+  if (filters?.limit) params.append("limit", String(filters.limit));
 
-  const queryString = params.toString();
-  const endpoint = `/api/v1/players${queryString ? `?${queryString}` : ""}`;
-
+  const endpoint = `/api/v1/players${params.toString() ? `?${params}` : ""}`;
   const response = await fetchApi<{
     success: boolean;
     data: { players: BackendPlayer[] };
   }>(endpoint);
 
-  // Filter out players with invalid positions and transform the data
   return response.data.players
-    .filter((p): p is BackendPlayer & { position: Position } =>
-      isValidPosition(p.position)
-    )
+    .filter((p): p is BackendPlayer & { position: Position } => isValidPosition(p.position))
     .map((p) => ({
       id: generatePlayerId(p.name, p.club),
       playerName: p.name,
@@ -96,6 +78,61 @@ export async function getPlayers(filters?: {
     }));
 }
 
-export const api = {
-  getPlayers,
+/* ---------- NEW: team parse endpoint ---------- */
+
+export type Difficulty = "easy" | "medium" | "hard";
+export type ParseTeamApiRequest = {
+  teamText: string;
+  strictMode?: boolean;
+  includeSuggestions?: boolean;
+  useLLM?: boolean;
+  gameweek?: number;
 };
+
+export type BackendFixture = {
+  opponent: string;
+  home: boolean;
+  fdr: number;
+  difficulty?: Difficulty;
+};
+
+export type BackendParsedPlayer = {
+  id?: number;
+  playerName: string;
+  clubName: string;
+  position: "GK" | "DEF" | "MID" | "FWD";
+  price: number;
+  score: number;
+  pointsPerGame: number;
+  nextFixture?: BackendFixture | null;
+  adjustedScore?: number;
+};
+
+export type BackendParseTeamResponse = {
+  success: boolean;
+  data: {
+    players: BackendParsedPlayer[];
+    stats?: {
+      totalValue?: number;
+      averageScore?: number;
+      formation?: string;
+      byPosition?: Record<string, number>;
+      byClub?: Record<string, number>;
+    };
+    unknown?: string[];
+    duplicates?: string[];
+    suggestions?: Record<string, unknown>;
+  };
+};
+
+export async function parseTeamApi(payload: ParseTeamApiRequest) {
+  return fetchApi<BackendParseTeamResponse>("/api/v1/teams/parse", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/* ---------- expose both named + object + default ---------- */
+
+export const api = { getPlayers, parseTeamApi };
+export default api;

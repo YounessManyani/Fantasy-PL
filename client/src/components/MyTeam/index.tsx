@@ -1,3 +1,4 @@
+// src/pages/myteam/index.tsx
 import { useState } from "react";
 import { Users } from "lucide-react";
 import { useTeamBuilder } from "../../hooks/useTeamBuilder";
@@ -62,17 +63,16 @@ const MyTeam = () => {
     closeModal();
   };
 
-  const handleParseTeam = async () => {
+  /** Helper pour parser avec des overrides (utile pour auto-parse au toggle/GW) */
+  const handleParseTeamWith = async (ai: boolean, gw: number) => {
     if (selectedPlayers.length !== 11) {
       setError("Please select all 11 players");
       return;
     }
-
     setIsLoading(true);
     setError(null);
-
     try {
-      const result = await parseTeam(selectedPlayers, selectedFormation, useAI);
+      const result = await parseTeam(selectedPlayers, selectedFormation, ai, gw);
       setParsedResult(result);
     } catch (err: unknown) {
       setError((err as Error).message || "Failed to parse team");
@@ -80,6 +80,14 @@ const MyTeam = () => {
       setIsLoading(false);
     }
   };
+
+  const handleParseTeam = async () => {
+    await handleParseTeamWith(useAI, gameweek);
+  };
+
+// Handlers pour les contrôles
+const handleToggleAI = (v:boolean)=> setUseAI(v);
+const handleChangeGW = (gw:number)=> setGameweek(gw);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -126,9 +134,9 @@ const MyTeam = () => {
         {/* Team Controls */}
         <TeamControls
           useAI={useAI}
-          onToggleAI={setUseAI}
+          onToggleAI={handleToggleAI}
           gameweek={gameweek}
-          onGameweekChange={setGameweek}
+          onGameweekChange={handleChangeGW}
           onParseTeam={handleParseTeam}
           isLoading={isLoading}
           disabled={selectedPlayers.length !== 11}

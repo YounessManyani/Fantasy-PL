@@ -1,102 +1,89 @@
-import type { Player } from '../types';
-import type { EnrichedPlayer, ParsedTeamResult, TransferRecommendation, Formation } from '../types/myteam.types';
+// src/services/teamService.ts
+import type { Player } from "../types";
+import type { Formation, ParsedTeamResult, EnrichedPlayer } from "../types/myteam.types";
+import { parseTeamApi, type BackendParsedPlayer } from "./api";
 
-// Mock fixtures data
-const mockFixtures: Record<string, { opponent: string; home: boolean; fdr: number }> = {
-  'Arsenal': { opponent: 'Southampton', home: true, fdr: 2 },
-  'Liverpool': { opponent: 'Chelsea', home: false, fdr: 4 },
-  'Man City': { opponent: 'Newcastle', home: true, fdr: 2 },
-  'Chelsea': { opponent: 'Liverpool', home: true, fdr: 4 },
-  'Aston Villa': { opponent: 'Wolves', home: true, fdr: 3 },
-  'Newcastle': { opponent: 'Man City', home: false, fdr: 5 },
-  'Brighton': { opponent: 'Everton', home: true, fdr: 2 },
-  'Man Utd': { opponent: 'Brighton', home: false, fdr: 3 },
-  'West Ham': { opponent: 'Fulham', home: true, fdr: 3 },
-  'Spurs': { opponent: 'West Ham', home: false, fdr: 3 },
-  'Southampton': { opponent: 'Arsenal', home: false, fdr: 5 },
-};
-
-export const enrichPlayer = (player: Player): EnrichedPlayer => {
-  const fixture = mockFixtures[player.clubName] || null;
-  let adjustedScore = player.score;
-
-  if (fixture) {
-    const factor = fixture.fdr <= 2 ? 1.1 : fixture.fdr === 3 ? 1.0 : 0.9;
-    adjustedScore = player.score * factor;
-  }
-
-  return {
-    ...player,
-    nextFixture: fixture,
-    adjustedScore: Math.round(adjustedScore * 100) / 100,
-  };
-};
-
-export const parseTeam = async (
-  players: Player[],
-  formation: Formation,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _useAI: boolean = false
-): Promise<ParsedTeamResult> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1500));
-
-  // Enrich players with fixtures
-  const enrichedPlayers: EnrichedPlayer[] = players.map(enrichPlayer);
-
-  const avgScore = enrichedPlayers.reduce((sum, p) => sum + p.score, 0) / enrichedPlayers.length;
-  const totalValue = players.reduce((sum, p) => sum + p.price, 0);
-
-  // Find worst player for transfer suggestion
-  const worstPlayer = [...enrichedPlayers].sort((a, b) => a.adjustedScore - b.adjustedScore)[0];
-
-  // Mock better replacement
-  const betterReplacement: EnrichedPlayer = {
-    id: 99,
-    playerName: 'Tino Livramento',
-    clubName: 'Newcastle',
-    position: worstPlayer.position,
-    price: worstPlayer.price - 0.5,
-    score: worstPlayer.score + 1.5,
-    pointsPerGame: worstPlayer.pointsPerGame + 1.0,
-    nextFixture: { opponent: 'Wolves', home: true, fdr: 2 },
-    adjustedScore: (worstPlayer.score + 1.5) * 1.1,
-  };
-
-  const transferGain = betterReplacement.adjustedScore - worstPlayer.adjustedScore;
-
-  const transfers: TransferRecommendation[] = [
-    {
-      out: worstPlayer,
-      in: betterReplacement,
-      gain: Math.round(transferGain * 100) / 100,
-      explanation: `${worstPlayer.playerName} faces difficult fixtures (FDR ${worstPlayer.nextFixture?.fdr}). ${betterReplacement.playerName} has easier upcoming games and better form.`
-    }
-  ];
-
-  return {
-    players: enrichedPlayers,
-    totalValue: Math.round(totalValue * 10) / 10,
-    formation,
-    avgScore: Math.round(avgScore * 100) / 100,
-    transfers,
-    totalGain: Math.round(transferGain * 100) / 100,
-  };
-};
-
+/** === helpers de couleurs utilisés par tes composants === */
 export const getFDRColor = (fdr: number): string => {
-  if (fdr <= 2) return 'bg-emerald-100 text-emerald-700';
-  if (fdr === 3) return 'bg-yellow-100 text-yellow-700';
-  if (fdr === 4) return 'bg-orange-100 text-orange-700';
-  return 'bg-red-100 text-red-700';
+  if (fdr <= 2) return "bg-emerald-100 text-emerald-700";
+  if (fdr === 3) return "bg-yellow-100 text-yellow-700";
+  if (fdr === 4) return "bg-orange-100 text-orange-700";
+  return "bg-red-100 text-red-700";
 };
 
 export const getPositionColor = (position: string): string => {
   switch (position) {
-    case 'GK': return 'bg-yellow-500';
-    case 'DEF': return 'bg-blue-500';
-    case 'MID': return 'bg-emerald-500';
-    case 'FWD': return 'bg-red-500';
-    default: return 'bg-gray-500';
+    case "GK": return "bg-yellow-500";
+    case "DEF": return "bg-blue-500";
+    case "MID": return "bg-emerald-500";
+    case "FWD": return "bg-red-500";
+    default: return "bg-gray-500";
   }
 };
+
+/** === util === */
+function hashId(name: string, club: string) {
+  const s = `${name}-${club}`;
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
+  return Math.abs(h);
+}
+
+function mapPlayer(p: BackendParsedPlayer): EnrichedPlayer {
+  return {
+    id: typeof p.id === "number" ? p.id : hashId(p.playerName, p.clubName),
+    playerName: p.playerName,
+    clubName: p.clubName,
+    position: p.position,
+    price: p.price ?? 0,
+    score: p.score ?? 0,
+    pointsPerGame: p.pointsPerGame ?? 0,
+    nextFixture: p.nextFixture ?? null,
+    adjustedScore: p.adjustedScore ?? p.score ?? 0,
+  };
+}
+
+/**
+ * Appelle le backend pour parser l'équipe sélectionnée.
+ * Respecte ta signature existante ET ajoute gameweek (optionnel).
+ */
+export async function parseTeam(
+  selectedPlayers: Player[],
+  selectedFormation: Formation,
+  useAI: boolean,
+  gameweek?: number
+): Promise<ParsedTeamResult> {
+  const teamText = selectedPlayers.map(p => p.playerName).join(", ");
+
+  const res = await parseTeamApi({
+    teamText,
+    strictMode: false,
+    includeSuggestions: true,
+    useLLM: useAI,
+    gameweek,
+  });
+
+  const players = res.data.players.map(mapPlayer);
+
+  const totalValue =
+    res.data.stats?.totalValue ??
+    players.reduce((sum, p) => sum + (p.price || 0), 0);
+
+  const avgScore =
+    res.data.stats?.averageScore ??
+    (players.length
+      ? players.reduce((s, p) => s + (p.score || 0), 0) / players.length
+      : 0);
+
+  const formation =
+    (res.data.stats?.formation as Formation | undefined) ?? selectedFormation;
+
+  return {
+    players,
+    totalValue: Math.round(totalValue * 10) / 10,
+    avgScore: Math.round(avgScore * 100) / 100,
+    formation,
+    // Tu pourras brancher les transferts plus tard si tu as un endpoint dédié:
+    // transfers, totalGain
+  };
+}

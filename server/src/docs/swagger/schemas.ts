@@ -1,85 +1,70 @@
 /**
  * Définitions OpenAPI des schémas de données
  */
-
 export const openApiSchemas = {
   // ==================== COMMON ====================
-  
   Position: {
-    type: 'string',
-    enum: ['GK', 'DEF', 'MID', 'FWD'],
-    description: 'Position du joueur',
+    type: "string",
+    enum: ["GK", "DEF", "MID", "FWD"],
+    description: "Position du joueur",
   },
 
   Difficulty: {
-    type: 'string',
-    enum: ['easy', 'medium', 'hard'],
-    description: 'Niveau de difficulté du match',
+    type: "string",
+    enum: ["easy", "medium", "hard"],
+    description: "Niveau de difficulté du match",
   },
 
   ApiResponse: {
-    type: 'object',
+    type: "object",
     properties: {
       success: {
-        type: 'boolean',
-        description: 'Indique si la requête a réussi',
+        type: "boolean",
+        description: "Indique si la requête a réussi",
       },
-      data: {
-        type: 'object',
-        description: 'Données de la réponse',
-      },
-      error: {
-        type: 'string',
-        description: 'Message d\'erreur si échec',
-      },
+      data: { type: "object", description: "Données de la réponse" },
+      error: { type: "string", description: "Message d'erreur si échec" },
     },
-    required: ['success'],
+    required: ["success"],
   },
 
   // ==================== PLAYER ====================
-  
   Player: {
-    type: 'object',
+    type: "object",
     properties: {
-      id: {
-        type: 'integer',
-        description: 'Identifiant unique',
-        example: 42,
-      },
+      id: { type: "integer", description: "Identifiant unique", example: 42 },
       playerName: {
-        type: 'string',
-        description: 'Nom complet du joueur',
-        example: 'Mohamed Salah',
+        type: "string",
+        description: "Nom complet du joueur",
+        example: "Mohamed Salah",
       },
       clubName: {
-        type: 'string',
-        description: 'Nom du club',
-        example: 'Liverpool',
+        type: "string",
+        description: "Nom du club",
+        example: "Liverpool",
       },
-      position: {
-        $ref: '#/components/schemas/Position',
-      },
+      position: { $ref: "#/components/schemas/Position" },
       price: {
-        type: 'number',
-        format: 'float',
-        description: 'Prix en millions (£)',
+        type: "number",
+        format: "float",
+        description: "Prix en millions (£)",
         example: 13.0,
       },
       score: {
-        type: 'number',
-        format: 'float',
-        description: 'Score calculé (algorithme interne)',
+        type: "number",
+        format: "float",
+        description: "Score calculé (algorithme interne)",
         example: 2.45,
       },
       pointsPerGame: {
-        type: 'number',
-        format: 'float',
-        description: 'Points par match',
+        type: "number",
+        format: "float",
+        description: "Points par match",
         example: 6.8,
       },
       totalPoints: {
-        type: 'integer',
-        description: 'Points totaux de la saison',
+        type: "integer",
+        description: "Points totaux de la saison",
         example: 204,
       },
     },
@@ -87,18 +72,15 @@ export const openApiSchemas = {
 
   EnrichedPlayer: {
     allOf: [
-      { $ref: '#/components/schemas/Player' },
+      { $ref: "#/components/schemas/Player" },
       {
-        type: 'object',
+        type: "object",
         properties: {
-          nextFixture: {
-            $ref: '#/components/schemas/Fixture',
-            nullable: true,
-          },
+          nextFixture: { $ref: "#/components/schemas/Fixture", nullable: true },
           adjustedScore: {
-            type: 'number',
-            format: 'float',
-            description: 'Score ajusté avec multiplicateur de fixture',
+            type: "number",
+            format: "float",
+            description: "Score ajusté avec multiplicateur de fixture",
             example: 2.695,
           },
         },
@@ -107,224 +89,187 @@ export const openApiSchemas = {
   },
 
   PlayerFilters: {
-    type: 'object',
+    type: "object",
     properties: {
-      position: {
-        $ref: '#/components/schemas/Position',
-      },
-      club: {
-        type: 'string',
-        example: 'Arsenal',
-      },
-      limit: {
-        type: 'integer',
-        minimum: 1,
-        maximum: 100,
-        default: 50,
-      },
+      position: { $ref: "#/components/schemas/Position" },
+      club: { type: "string", example: "Arsenal" },
+      limit: { type: "integer", minimum: 1, maximum: 100, default: 50 },
     },
   },
 
   PlayerSuggestion: {
-    type: 'object',
+    type: "object",
     properties: {
-      name: {
-        type: 'string',
-        example: 'Mohamed Salah',
-      },
-      club: {
-        type: 'string',
-        example: 'Liverpool',
-      },
+      name: { type: "string", example: "Mohamed Salah" },
+      club: { type: "string", example: "Liverpool" },
       similarity: {
-        type: 'integer',
+        type: "integer",
         minimum: 0,
         maximum: 100,
-        description: 'Similarité en %',
+        description: "Similarité en %",
         example: 85,
       },
     },
   },
 
   // ==================== FIXTURE ====================
-  
   Fixture: {
-    type: 'object',
+    type: "object",
     properties: {
-      opponent: {
-        type: 'string',
-        example: 'Arsenal',
-      },
-      home: {
-        type: 'boolean',
-        description: 'Match à domicile',
-        example: true,
-      },
+      opponent: { type: "string", example: "Arsenal" },
+      home: { type: "boolean", description: "Match à domicile", example: true },
       fdr: {
-        type: 'integer',
+        type: "integer",
         minimum: 1,
         maximum: 5,
-        description: 'Fixture Difficulty Rating',
+        description: "Fixture Difficulty Rating",
         example: 4,
       },
-      difficulty: {
-        $ref: '#/components/schemas/Difficulty',
-      },
+      difficulty: { $ref: "#/components/schemas/Difficulty" },
     },
   },
 
   // ==================== TEAM ====================
-  
+
   ParseTeamRequest: {
-    type: 'object',
-    required: ['teamText'],
+    type: "object",
+    required: ["teamText"],
     properties: {
       teamText: {
-        type: 'string',
-        description: 'Liste de noms de joueurs (séparés par virgules, sauts de ligne, etc.)',
-        example: 'Salah, Haaland, Son, KDB, Saka, Trent, Van Dijk, Gabriel, Porro, Watkins',
+        type: "string",
+        description:
+          "Liste de noms de joueurs (séparés par virgules, sauts de ligne, etc.)",
+        example:
+          "Salah, Haaland, Son, KDB, Saka, Trent, Van Dijk, Gabriel, Porro, Watkins",
       },
       strictMode: {
-        type: 'boolean',
+        type: "boolean",
         default: false,
-        description: 'Mode strict (requiert ≥2 tokens par nom)',
+        description: "Mode strict (requiert ≥2 tokens par nom)",
       },
       includeSuggestions: {
-        type: 'boolean',
+        type: "boolean",
         default: true,
-        description: 'Inclure suggestions pour noms non reconnus',
+        description: "Inclure suggestions pour noms non reconnus",
       },
       useLLM: {
-        type: 'boolean',
+        type: "boolean",
         default: false,
-        description: 'Utiliser LLM pour résoudre ambiguïtés',
+        description: "Utiliser LLM pour résoudre ambiguïtés",
       },
       gameweek: {
-        type: 'integer',
+        type: "integer",
         minimum: 1,
         maximum: 38,
-        description: 'Semaine de jeu pour enrichissement avec fixtures',
+        nullable: true,
+        description:
+          "Semaine de jeu pour enrichissement avec fixtures. Si omis, aucun enrichissement GW.",
         example: 10,
       },
+    },
+    // <-- Drives Swagger UI's default payload so GW appears in the text box + cURL
+    example: {
+      teamText:
+        "Raya, Romero, Calafiori, Chalobah, Doku, Enzo, Gakpo, Semenyo, Kudus, Joao Pedro, Haaland",
+      strictMode: false,
+      includeSuggestions: true,
+      useLLM: true,
+      gameweek: 10,
     },
   },
 
   ParsedTeam: {
-    type: 'object',
+    type: "object",
     properties: {
       players: {
-        type: 'array',
-        items: {
-          $ref: '#/components/schemas/EnrichedPlayer',
-        },
+        type: "array",
+        items: { $ref: "#/components/schemas/EnrichedPlayer" },
       },
       unknown: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Noms non reconnus',
-        example: ['Unknwn Player'],
+        type: "array",
+        items: { type: "string" },
+        description: "Noms non reconnus",
+        example: ["Unknown Player"],
       },
       duplicates: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Noms en double',
+        type: "array",
+        items: { type: "string" },
+        description: "Noms en double",
       },
       suggestions: {
-        type: 'object',
+        type: "object",
         additionalProperties: {
-          type: 'array',
-          items: {
-            $ref: '#/components/schemas/PlayerSuggestion',
-          },
+          type: "array",
+          items: { $ref: "#/components/schemas/PlayerSuggestion" },
         },
       },
-      stats: {
-        $ref: '#/components/schemas/TeamStats',
-      },
-      validation: {
-        $ref: '#/components/schemas/ValidationResult',
-      },
-      llmStats: {
-        $ref: '#/components/schemas/LLMStats',
-      },
+      stats: { $ref: "#/components/schemas/TeamStats" },
+      validation: { $ref: "#/components/schemas/ValidationResult" },
+      llmStats: { $ref: "#/components/schemas/LLMStats" },
     },
   },
 
   TeamStats: {
-    type: 'object',
+    type: "object",
     properties: {
       totalValue: {
-        type: 'number',
-        format: 'float',
-        description: 'Valeur totale de l\'équipe (£)',
+        type: "number",
+        format: "float",
+        description: "Valeur totale de l'équipe (£)",
         example: 83.5,
       },
       byPosition: {
-        type: 'object',
+        type: "object",
         properties: {
-          GK: { type: 'integer', example: 1 },
-          DEF: { type: 'integer', example: 4 },
-          MID: { type: 'integer', example: 4 },
-          FWD: { type: 'integer', example: 2 },
+          GK: { type: "integer", example: 1 },
+          DEF: { type: "integer", example: 4 },
+          MID: { type: "integer", example: 4 },
+          FWD: { type: "integer", example: 2 },
         },
       },
       byClub: {
-        type: 'object',
-        additionalProperties: { type: 'integer' },
-        example: { Liverpool: 2, Arsenal: 3, 'Manchester City': 1 },
+        type: "object",
+        additionalProperties: { type: "integer" },
+        example: { Liverpool: 2, Arsenal: 3, "Manchester City": 1 },
       },
-      averageScore: {
-        type: 'number',
-        format: 'float',
-        example: 2.15,
-      },
-      formation: {
-        type: 'string',
-        example: '4-4-2',
-      },
+      averageScore: { type: "number", format: "float", example: 2.15 },
+      formation: { type: "string", example: "4-4-2" },
     },
   },
 
   ValidationResult: {
-    type: 'object',
+    type: "object",
     properties: {
-      valid: {
-        type: 'boolean',
-        example: true,
-      },
-      errors: {
-        type: 'array',
-        items: { type: 'string' },
-        example: [],
-      },
+      valid: { type: "boolean", example: true },
+      errors: { type: "array", items: { type: "string" }, example: [] },
       warnings: {
-        type: 'array',
-        items: { type: 'string' },
-        example: ['Team value £101.5m exceeds £100m budget'],
+        type: "array",
+        items: { type: "string" },
+        example: ["Team value £101.5m exceeds £100m budget"],
       },
     },
   },
 
   LLMStats: {
-    type: 'object',
+    type: "object",
     properties: {
       attempted: {
-        type: 'integer',
-        description: 'Nombre de tentatives LLM',
+        type: "integer",
+        description: "Nombre de tentatives LLM",
         example: 1,
       },
       resolved: {
-        type: 'integer',
-        description: 'Nombre de résolutions réussies',
+        type: "integer",
+        description: "Nombre de résolutions réussies",
         example: 1,
       },
       names: {
-        type: 'array',
+        type: "array",
         items: {
-          type: 'object',
+          type: "object",
           properties: {
-            input: { type: 'string', example: 'KDB' },
-            matched: { type: 'string', example: 'Kevin De Bruyne' },
+            input: { type: "string", example: "KDB" },
+            matched: { type: "string", example: "Kevin De Bruyne" },
           },
         },
       },
@@ -332,34 +277,33 @@ export const openApiSchemas = {
   },
 
   // ==================== TRANSFER ====================
-  
   RecommendRequest: {
     allOf: [
-      { $ref: '#/components/schemas/ParseTeamRequest' },
+      { $ref: "#/components/schemas/ParseTeamRequest" },
       {
-        type: 'object',
+        type: "object",
         properties: {
           bank: {
-            type: 'number',
-            format: 'float',
+            type: "number",
+            format: "float",
             minimum: 0,
             maximum: 100,
             default: 0,
-            description: 'Budget disponible (£)',
+            description: "Budget disponible (£)",
             example: 2.5,
           },
           maxTransfers: {
-            type: 'integer',
+            type: "integer",
             minimum: 1,
             maximum: 2,
             default: 1,
-            description: 'Nombre max de transferts',
+            description: "Nombre max de transferts",
           },
           strategy: {
-            type: 'string',
-            enum: ['best_gain', 'best_value', 'balanced'],
-            default: 'best_gain',
-            description: 'Stratégie de recommandation',
+            type: "string",
+            enum: ["best_gain", "best_value", "balanced"],
+            default: "best_gain",
+            description: "Stratégie de recommandation",
           },
         },
       },
@@ -367,101 +311,85 @@ export const openApiSchemas = {
   },
 
   Transfer: {
-    type: 'object',
+    type: "object",
     properties: {
       out: {
-        $ref: '#/components/schemas/Player',
-        description: 'Joueur sortant',
+        $ref: "#/components/schemas/Player",
+        description: "Joueur sortant",
       },
       in: {
-        $ref: '#/components/schemas/Player',
-        description: 'Joueur entrant',
+        $ref: "#/components/schemas/Player",
+        description: "Joueur entrant",
       },
       gain: {
-        type: 'number',
-        format: 'float',
-        description: 'Gain de score attendu',
+        type: "number",
+        format: "float",
+        description: "Gain de score attendu",
         example: 0.85,
       },
       cost: {
-        type: 'number',
-        format: 'float',
-        description: 'Différence de prix (£)',
+        type: "number",
+        format: "float",
+        description: "Différence de prix (£)",
         example: -1.5,
       },
       meta: {
-        type: 'object',
+        type: "object",
         properties: {
-          gameweek: { type: 'integer', example: 10 },
-          outFixture: { $ref: '#/components/schemas/Fixture' },
-          inFixture: { $ref: '#/components/schemas/Fixture' },
-          outAdjusted: { type: 'number', example: 2.25 },
-          inAdjusted: { type: 'number', example: 3.10 },
+          gameweek: { type: "integer", example: 10 },
+          outFixture: { $ref: "#/components/schemas/Fixture" },
+          inFixture: { $ref: "#/components/schemas/Fixture" },
+          outAdjusted: { type: "number", example: 2.25 },
+          inAdjusted: { type: "number", example: 3.1 },
         },
       },
     },
   },
 
   TransferRecommendation: {
-    type: 'object',
+    type: "object",
     properties: {
-      success: { type: 'boolean' },
+      success: { type: "boolean" },
       transfers: {
-        type: 'array',
-        items: { $ref: '#/components/schemas/Transfer' },
+        type: "array",
+        items: { $ref: "#/components/schemas/Transfer" },
       },
       impact: {
-        type: 'object',
+        type: "object",
         properties: {
-          scoreGain: { type: 'number', example: 1.25 },
-          cost: { type: 'number', example: -2.0 },
-          transfersUsed: { type: 'integer', example: 1 },
-          averageGain: { type: 'number', example: 1.25 },
+          scoreGain: { type: "number", example: 1.25 },
+          cost: { type: "number", example: -2.0 },
+          transfersUsed: { type: "integer", example: 1 },
+          averageGain: { type: "number", example: 1.25 },
         },
       },
       explanation: {
-        type: 'string',
-        description: 'Explication textuelle des transferts',
+        type: "string",
+        description: "Explication textuelle des transferts",
       },
       newTeam: {
-        type: 'array',
-        items: { $ref: '#/components/schemas/Player' },
+        type: "array",
+        items: { $ref: "#/components/schemas/Player" },
       },
-      comparison: {
-        type: 'object',
-        description: 'Comparaison avant/après',
-      },
+      comparison: { type: "object", description: "Comparaison avant/après" },
     },
   },
 
   // ==================== HEALTH ====================
-  
   HealthResponse: {
-    type: 'object',
+    type: "object",
     properties: {
-      status: {
-        type: 'string',
-        example: 'healthy',
-      },
-      version: {
-        type: 'string',
-        example: '2.0.0',
-      },
-      environment: {
-        type: 'string',
-        example: 'development',
-      },
-      playersLoaded: {
-        type: 'integer',
-        example: 741,
-      },
+      status: { type: "string", example: "healthy" },
+      version: { type: "string", example: "2.0.0" },
+      environment: { type: "string", example: "development" },
+      playersLoaded: { type: "integer", example: 741 },
       llm: {
-        type: 'object',
+        type: "object",
         properties: {
-          enabled: { type: 'boolean' },
-          provider: { type: 'string', example: 'openai' },
-          model: { type: 'string', example: 'gpt-4o-mini' },
-          hasKey: { type: 'boolean' },
+          enabled: { type: "boolean" },
+          provider: { type: "string", example: "openai" },
+          model: { type: "string", example: "gpt-4o-mini" },
+          hasKey: { type: "boolean" },
         },
       },
     },
